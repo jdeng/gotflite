@@ -7,8 +7,8 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/jdeng/gotflite"
 	"github.com/jdeng/gotflite/tflite"
+	"golang.org/x/image/bmp"
 	"image"
-	"image/jpeg"
 	"log"
 	"os"
 )
@@ -41,12 +41,13 @@ func main() {
 	}
 
 	img, _, _ := image.Decode(reader)
-	img = imaging.Fill(img, 224, 224, imaging.Center, imaging.Lanczos)
+	img = imaging.Resize(img, 224, 224, imaging.Linear)
 
 	if *saveImage != "" {
 		f, _ := os.Create(*saveImage)
 		defer f.Close()
-		jpeg.Encode(f, img, nil)
+		bmp.Encode(f, img)
+		log.Printf("Save resized image to %s\n", *saveImage)
 	}
 
 	input, err := gotflite.InputFrom(img, 127.5, 127.5)
@@ -56,7 +57,7 @@ func main() {
 	log.Printf("Image data loaded from %s\n", *imageFile)
 
 	// load model
-	intp, err := tflite.NewInterpreterFromFile(*modelFile)
+	intp, err := tflite.NewInterpreterFromFile(*modelFile, nil)
 	if err != nil {
 		panic(err)
 	}

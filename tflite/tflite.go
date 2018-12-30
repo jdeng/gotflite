@@ -18,6 +18,10 @@ type Interpreter struct {
 	interpreter *C.TFL_Interpreter
 }
 
+type InterpreterOptions struct {
+	NumThreads int
+}
+
 func errorFromStatus(status C.TFL_Status) error {
 	if status == C.kTfLiteOk {
 		return nil
@@ -25,7 +29,34 @@ func errorFromStatus(status C.TFL_Status) error {
 	return fmt.Errorf("Error")
 }
 
-func NewInterpreterFromFile(filename string) (*Interpreter, error) {
+func newInterpreterOptions(model *C.TFL_Model, opts *InterpreterOptions) (*Interpreter, error) {
+	var o *C.TFL_InterpreterOptions
+	if opts != nil {
+		o = C.TFL_NewInterpreterOptions()
+		if opts.NumThreads > 0 {
+			C.TFL_InterpreterOptionsSetNumThreads(o, C.int32_t(opts.NumThreads))
+		}
+		defer C.TFL_DeleteInterpreterOptions(o)
+	}
+
+	interpreter := C.TFL_NewInterpreter(model, o)
+	if interpreter == nil {
+		return nil, fmt.Errorf("No interpreter")
+	}
+
+	return &Interpreter{model: model, interpreter: interpreter}, nil
+}
+
+func NewInterpreter(data []byte, opts *InterpreterOptions) (*Interpreter, error) {
+	model := C.TFL_NewModel(unsafe.Pointer(&data[0]), C.size_t(len(data)))
+	if model == nil {
+		return nil, fmt.Errorf("Invalid model")
+	}
+
+	return newInterpreterOptions(model, opts)
+}
+
+func NewInterpreterFromFile(filename string, opts *InterpreterOptions) (*Interpreter, error) {
 	cs := C.CString(filename)
 	defer C.free(unsafe.Pointer(cs))
 	model := C.TFL_NewModelFromFile(cs)
@@ -33,12 +64,19 @@ func NewInterpreterFromFile(filename string) (*Interpreter, error) {
 		return nil, fmt.Errorf("No model")
 	}
 
-	interpreter := C.TFL_NewInterpreter(model, nil)
-	if interpreter == nil {
-		return nil, fmt.Errorf("No interpreter")
+	return newInterpreterOptions(model, opts)
+}
+
+func (i *Interpreter) Release() {
+	if i.interpreter != nil {
+		C.TFL_DeleteInterpreter(i.interpreter)
+		i.interpreter = nil
 	}
 
-	return &Interpreter{model: model, interpreter: interpreter}, nil
+	if i.model != nil {
+		C.TFL_DeleteModel(i.model)
+		i.model = nil
+	}
 }
 
 func (i *Interpreter) AllocateTensors() error {
@@ -103,16 +141,18 @@ func (i *Interpreter) PrintState() {
 	C.TFL_PrintInterpreterState(i.interpreter)
 }
 
-func (i *Interpreter) Release() {
-	if i.interpreter != nil {
-		C.TFL_DeleteInterpreter(i.interpreter)
-		i.interpreter = nil
+func (i *Interpreter) ResizeInputTensors(idx int, dims []int) error {
+	if i.interpreter == nil {
+		return fmt.Errorf("No interpreter")
 	}
 
-	if i.model != nil {
-		C.TFL_DeleteModel(i.model)
-		i.model = nil
-	}
+	status := C.TFL_InterpreterResizeInputTensor(i.interpreter, C.int32_t(idx), (*C.int)(unsafe.Pointer(&dims[0])), C.int32_t(len(dims)))
+	return errorFromStatus(status)
+}
+
+//TODO:
+func (i *Interpreter) SetErrorReporter() error {
+	return fmt.Errorf("Not implemented")
 }
 
 type Tensor struct {
@@ -121,12 +161,6 @@ type Tensor struct {
 
 func NewTensor(tensor *C.TFL_Tensor) *Tensor {
 	return &Tensor{tensor: tensor}
-}
-
-func (t *Tensor) Release() {
-	if t.tensor != nil {
-		t.tensor = nil
-	}
 }
 
 func (t *Tensor) Type() int {
@@ -179,7 +213,7 @@ func (t *Tensor) ByteSize() int64 {
 
 func (t *Tensor) ToFloats() ([]float32, error) {
 	if t.Type() != C.kTfLiteFloat32 {
-		return nil, fmt.Errorf("not float")
+		return nil, fmt.Errorf("Not float")
 	}
 
 	n := t.NumElements()
@@ -189,10 +223,13 @@ func (t *Tensor) ToFloats() ([]float32, error) {
 
 func (t *Tensor) CopyFloats(data []float32) error {
 	if t.Type() != C.kTfLiteFloat32 {
-		return fmt.Errorf("not float")
+		return fmt.Errorf("Not float")
 	}
 
 	status := C.TFL_TensorCopyFromBuffer(t.tensor, unsafe.Pointer(&data[0]), C.size_t(len(data))*C.size_t(unsafe.Sizeof(data[0])))
 	return errorFromStatus(status)
 }
 
+//TODO:
+func (t *Tensor) QuantizationParams() {
+}
