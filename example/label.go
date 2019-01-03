@@ -42,6 +42,7 @@ func main() {
 
 	img, _, _ := image.Decode(reader)
 	img = imaging.Resize(img, 224, 224, imaging.Linear)
+	// img = imaging.Fill(img, 224, 224, imaging.Center, imaging.Linear)
 
 	if *saveImage != "" {
 		f, _ := os.Create(*saveImage)
@@ -80,6 +81,7 @@ func main() {
 	if err := intp.Invoke(); err != nil {
 		panic(err)
 	}
+	
 
 	tout, _ := intp.GetOutputTensor(0)
 	log.Printf("Output dims: %v, total: %d, type: %d\n", tout.Dims(), tout.NumElements(), tout.Type())
@@ -87,6 +89,13 @@ func main() {
 	out, err := tout.ToFloats()
 	if err != nil {
 		panic(err)
+	}
+
+	numOutputs, _ := intp.GetOutputTensorCount()
+	if numOutputs > 1 {
+		out1, _ := intp.GetOutputTensor(1)
+		feature, _ := out1.ToFloats()
+		log.Printf("Feature dims: %d\n", len(feature))
 	}
 
 	index := make([]int, len(out))

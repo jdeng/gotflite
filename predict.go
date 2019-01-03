@@ -65,6 +65,6 @@ func (p *Predictor) Extract(data []byte) (output []float32, err error) {
 		return
 	}
 
-	tout, _ := intp.GetOutputTensor(0)
+	tout, _ := intp.GetOutputTensor(p.outputTensorIndex)
 	return tout.ToFloats()
 }
