@@ -13,6 +13,7 @@ type Predictor struct {
 
 	interpreter             *tflite.Interpreter
 	imageWidth, imageHeight int
+	ImageProcessor  func(img image.Image, width,height int) image.Image
 	outputTensorIndex       int
 }
 
@@ -34,7 +35,8 @@ func (p *Predictor) Relase() {
 	}
 }
 
-func (p *Predictor) Extract(data []byte) (output []float32, err error) {
+
+func (p *Predictor) Run(data []byte) (output []float32, err error) {
 	err = nil
 
 	img, _, err := image.Decode(bytes.NewReader(data))
@@ -42,7 +44,11 @@ func (p *Predictor) Extract(data []byte) (output []float32, err error) {
 		return
 	}
 
-	img = imaging.Resize(img, p.imageWidth, p.imageHeight, imaging.Linear)
+	if p.ImageProcessor == nil {
+		img = imaging.Resize(img, p.imageWidth, p.imageHeight, imaging.Linear)
+	} else {
+		img = p.ImageProcessor(img, p.imageWidth, p.imageHeight)
+	}
 	// img = imaging.Fill(img, 224, 224, imaging.Center, imaging.Linear)
 
 	input, err := InputFrom(img, 127.5, 127.5)
