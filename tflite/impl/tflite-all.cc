@@ -120,7 +120,6 @@ extern "C" {
 #include "fft4g.c"
 }
 
-
 #include "tensorflow/lite/kernels/eigen_support.cc"
 
 #include "farmhash.cc"
