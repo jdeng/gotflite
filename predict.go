@@ -29,7 +29,7 @@ func NewPredictor(modelFile string, imageWidth, imageHeight int, outputTensorInd
 	return &Predictor{interpreter: intp, imageWidth: imageWidth, imageHeight: imageHeight, outputTensorIndex: outputTensorIndex}, nil
 }
 
-func (p *Predictor) Release() {
+func (p *Predictor) Cleanup() {
 	if p.interpreter != nil {
 		p.interpreter.Release()
 		p.interpreter = nil

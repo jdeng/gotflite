@@ -1,29 +1,29 @@
 package recognizer
 
 import (
-	"bytes"
-	"image"
-	"github.com/jdeng/gotflite"
-	"encoding/json"
-	"os"
 	"bufio"
+	"bytes"
+	"encoding/json"
+	"github.com/jdeng/gotflite"
+	"image"
+	"os"
 )
 
 type Model struct {
 	predictor *gotflite.Predictor
-	labels []string
+	labels    []string
 }
 
 func New(modelFile string, labelsFile string) (*Model, error) {
 	synset, err := os.Open(labelsFile)
-        if err != nil {
-                return nil, err
-        }
-        dict := []string{}
-        scanner := bufio.NewScanner(synset)
-        for scanner.Scan() {
-                dict = append(dict, scanner.Text())
-        }
+	if err != nil {
+		return nil, err
+	}
+	dict := []string{}
+	scanner := bufio.NewScanner(synset)
+	for scanner.Scan() {
+		dict = append(dict, scanner.Text())
+	}
 
 	pred, err := gotflite.NewPredictor(modelFile, 224, 224, 0)
 	if err != nil {
@@ -50,15 +50,14 @@ func Run(reco *Model, data []byte, n int) (string, error) {
 		return "", err
 	}
 
-        index := make([]int, len(out))
-        gotflite.Argsort(out, index)
+	index := make([]int, len(out))
+	gotflite.Argsort(out, index)
 
 	var results []string
-        for i := 0; i < n; i++ {
+	for i := 0; i < n; i++ {
 		results = append(results, reco.labels[index[i]])
-        }
+	}
 
 	bs, err := json.Marshal(results)
 	return string(bs), nil
 }
-
