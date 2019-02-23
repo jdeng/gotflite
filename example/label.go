@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/jdeng/gotflite"
-	"io/ioutil"
+	"image"
 	"log"
 	"os"
 )
@@ -38,7 +38,12 @@ func main() {
 	defer pred.Release()
 
 	// load image
-	img, err := ioutil.ReadFile(*imageFile)
+	f, err := os.Open(*imageFile)
+	if err != nil {
+		panic(err)
+	}
+
+	img, _, err := image.Decode(f)
 	if err != nil {
 		panic(err)
 	}

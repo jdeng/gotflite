@@ -1,7 +1,6 @@
 package gotflite
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/disintegration/imaging"
 	"github.com/jdeng/gotflite/tflite"
@@ -37,14 +36,8 @@ func (p *Predictor) Release() {
 	}
 }
 
-func (p *Predictor) Run(data []byte) (output []float32, err error) {
+func (p *Predictor) Run(img image.Image) (output []float32, err error) {
 	err = nil
-
-	img, _, err := image.Decode(bytes.NewReader(data))
-	if err != nil {
-		fmt.Printf("Failed to decode %v\n", err)
-		return
-	}
 
 	if p.ImageProcessor == nil {
 		img = imaging.Resize(img, p.imageWidth, p.imageHeight, imaging.Linear)
