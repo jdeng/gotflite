@@ -30,6 +30,16 @@ func main() {
 		dict = append(dict, scanner.Text())
 	}
 
+	// load image
+	f, err := os.Open(*imageFile)
+	if err != nil {
+		panic(err)
+	}
+	img, _, err := image.Decode(f)
+	if err != nil {
+		panic(err)
+	}
+
 	// load model
 	pred, err := gotflite.NewPredictor(*modelFile, 224, 224, 0)
 	if err != nil {
@@ -37,17 +47,7 @@ func main() {
 	}
 	defer pred.Release()
 
-	// load image
-	f, err := os.Open(*imageFile)
-	if err != nil {
-		panic(err)
-	}
-
-	img, _, err := image.Decode(f)
-	if err != nil {
-		panic(err)
-	}
-
+	// run model
 	out, err := pred.Run(img)
 	if err != nil {
 		fmt.Printf("%v\n", err)
