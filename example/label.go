@@ -4,11 +4,8 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/disintegration/imaging"
 	"github.com/jdeng/gotflite"
-	"github.com/jdeng/gotflite/tflite"
-	"golang.org/x/image/bmp"
-	"image"
+	"io/ioutil"
 	"log"
 	"os"
 )
@@ -17,7 +14,6 @@ var (
 	modelFile  = flag.String("model", "model.tflite", "path to tensorflow lite model file")
 	imageFile  = flag.String("image", "cat15.jpg", "path to image file")
 	labelsFile = flag.String("labels", "labels.txt", "path to labels file")
-	saveImage  = flag.String("saveimage", "", "path to save resized image")
 )
 
 func main() {
@@ -34,68 +30,23 @@ func main() {
 		dict = append(dict, scanner.Text())
 	}
 
-	// load image
-	reader, err := os.Open(*imageFile)
-	if err != nil {
-		panic(err)
-	}
-
-	img, _, _ := image.Decode(reader)
-	img = imaging.Resize(img, 224, 224, imaging.Linear)
-	// img = imaging.Fill(img, 224, 224, imaging.Center, imaging.Linear)
-
-	if *saveImage != "" {
-		f, _ := os.Create(*saveImage)
-		defer f.Close()
-		bmp.Encode(f, img)
-		log.Printf("Save resized image to %s\n", *saveImage)
-	}
-
-	input, err := gotflite.InputFrom(img, 127.5, 127.5)
-	if err != nil {
-		panic(err)
-	}
-	log.Printf("Image data loaded from %s\n", *imageFile)
-
 	// load model
-	intp, err := tflite.NewInterpreterFromFile(*modelFile, nil)
+	pred, err := gotflite.NewPredictor(*modelFile, 224, 224, 0)
 	if err != nil {
 		panic(err)
 	}
-	defer intp.Release()
-	//	intp.PrintState()
-	if err := intp.AllocateTensors(); err != nil {
-		panic(err)
-	}
+	defer pred.Release()
 
-	log.Printf("Interpreter created from %s\n", *modelFile)
-
-	//get input tensor
-	tin, _ := intp.GetInputTensor(0)
-	log.Printf("Input dims: %v, total: %d, type: %d\n", tin.Dims(), tin.NumElements(), tin.Type())
-
-	if err := tin.CopyFloats(input); err != nil {
-		panic(err)
-	}
-
-	if err := intp.Invoke(); err != nil {
-		panic(err)
-	}
-	
-
-	tout, _ := intp.GetOutputTensor(0)
-	log.Printf("Output dims: %v, total: %d, type: %d\n", tout.Dims(), tout.NumElements(), tout.Type())
-
-	out, err := tout.ToFloats()
+	// load image
+	img, err := ioutil.ReadFile(*imageFile)
 	if err != nil {
 		panic(err)
 	}
 
-	numOutputs, _ := intp.GetOutputTensorCount()
-	if numOutputs > 1 {
-		out1, _ := intp.GetOutputTensor(1)
-		feature, _ := out1.ToFloats()
-		log.Printf("Feature dims: %d\n", len(feature))
+	out, err := pred.Run(img)
+	if err != nil {
+		fmt.Printf("%v\n", err)
+		panic(err)
 	}
 
 	index := make([]int, len(out))
