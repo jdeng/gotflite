@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/jdeng/gotflite"
 	"image"
-	"log"
 	"os"
 )
 
@@ -57,7 +56,7 @@ func main() {
 	index := make([]int, len(out))
 	gotflite.Argsort(out, index)
 
-	log.Println("Top results:")
+	fmt.Println("Top results:")
 	for i := 0; i < 10; i++ {
 		fmt.Printf(" %d, %f, %s\n", index[i], out[i], dict[index[i]])
 	}
