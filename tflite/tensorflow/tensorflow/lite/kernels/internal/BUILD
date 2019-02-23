@@ -1,11 +1,12 @@
-load("//tensorflow/lite:build_def.bzl", "tflite_copts")
-load("//tensorflow/lite:special_rules.bzl", "tflite_portable_test_suite")
-
 package(default_visibility = [
     "//visibility:public",
 ])
 
 licenses(["notice"])  # Apache 2.0
+
+load("//tensorflow:tensorflow.bzl", "tf_cc_test")
+load("//tensorflow/lite:build_def.bzl", "tflite_copts")
+load("//tensorflow/lite:special_rules.bzl", "tflite_portable_test_suite")
 
 tflite_deps_intel = [
     "@arm_neon_2_x86_sse",
@@ -314,8 +315,6 @@ cc_library(
         "reference/depthwiseconv_uint8.h",
         "reference/fully_connected.h",
         "reference/integer_ops/dequantize.h",
-        "reference/integer_ops/pooling.h",
-        "reference/integer_ops/softmax.h",
         "reference/reference_ops.h",
         "reference/softmax.h",
     ],
@@ -551,10 +550,11 @@ cc_library(
     ],
 )
 
-cc_test(
+# TODO(b/122597976): Eliminate TF dependency from lite/kernels:test_util,
+# in turn eliminating the need to use tf_cc_test for any dependent tests.
+tf_cc_test(
     name = "tensor_utils_test",
     srcs = ["tensor_utils_test.cc"],
-    copts = NEON_FLAGS_IF_APPLICABLE,
     linkopts = select({
         "//tensorflow:android": [
             "-fPIE -pie",
@@ -654,6 +654,8 @@ cc_test(
         "logsoftmax_quantized_test.cc",
     ],
     tags = [
+        # TODO(b/122242739): Reenable after fixing the flakiness?
+        "nomac",
         "tflite_not_portable",
     ],
     deps = [

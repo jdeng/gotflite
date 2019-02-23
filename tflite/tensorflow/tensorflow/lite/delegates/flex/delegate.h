@@ -49,9 +49,9 @@ class FlexDelegate : public TfLiteDelegate {
   ~FlexDelegate();
 
  private:
-  FlexDelegate();
+  explicit FlexDelegate(std::unique_ptr<flex::DelegateData> delegate_data);
 
-  flex::DelegateData delegate_data_;
+  std::unique_ptr<flex::DelegateData> delegate_data_;
 };
 
 }  // namespace tflite

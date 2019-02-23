@@ -53,7 +53,6 @@
 #include "tensorflow/lite/kernels/range.cc"
 #include "tensorflow/lite/kernels/reduce.cc"
 #include "tensorflow/lite/kernels/register.cc"
-#include "tensorflow/lite/kernels/register_ref.cc"
 #include "tensorflow/lite/kernels/relu1.cc"
 #include "tensorflow/lite/kernels/reshape.cc"
 #include "tensorflow/lite/kernels/resize_bilinear.cc"

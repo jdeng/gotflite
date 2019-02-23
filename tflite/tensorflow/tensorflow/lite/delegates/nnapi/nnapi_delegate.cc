@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 #include <cstdarg>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -37,7 +38,7 @@ namespace {
 
 // TODO(b/80621585): Consider printing error string, but don't for now to
 // minimize binary size.
-#define RETURN_TFLITE_ERROR_IF_NN_ERROR(context, code)                        \
+#define CHECK_NN(context, code)                                               \
   do {                                                                        \
     const auto _code = (code);                                                \
     if (_code != ANEURALNETWORKS_NO_ERROR) {                                  \
@@ -223,8 +224,8 @@ class NNAPIOpBuilder {
         .type = ANEURALNETWORKS_TENSOR_FLOAT32,
         .dimensionCount = dimension_count,
         .dimensions = dims.data()};
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context_, ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
+    CHECK_NN(context_,
+             ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
     int ann_operand = operand_mapping_->add_new_non_tensor_operand();
     augmented_outputs_.push_back(ann_operand);
     return kTfLiteOk;
@@ -240,8 +241,8 @@ class NNAPIOpBuilder {
         static_cast<uint32_t>(tensor->dims->size),
         reinterpret_cast<uint32_t*>(tensor->dims->data), tensor->params.scale,
         tensor->params.zero_point};
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context_, ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
+    CHECK_NN(context_,
+             ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
     augmented_outputs_.push_back(ann_index);
 
     *ann_tensor_index_out = ann_index;
@@ -297,15 +298,14 @@ class NNAPIOpBuilder {
     ANeuralNetworksOperandType operand_type{
         nn_type, static_cast<uint32_t>(tensor->dims->size),
         reinterpret_cast<uint32_t*>(tensor->dims->data), scale, zeroPoint};
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context_, ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
+    CHECK_NN(context_,
+             ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
 
     if (tensor->allocation_type == kTfLiteMmapRo) {
       // TODO(b/80630405): Use NNAPIAllocation.
-      RETURN_TFLITE_ERROR_IF_NN_ERROR(
-          context_,
-          ANeuralNetworksModel_setOperandValue(
-              nn_model_, ann_tensor_index, tensor->data.raw, tensor->bytes));
+      CHECK_NN(context_, ANeuralNetworksModel_setOperandValue(
+                             nn_model_, ann_tensor_index, tensor->data.raw,
+                             tensor->bytes));
     }
 
     *ann_tensor_index_out = ann_tensor_index;
@@ -315,13 +315,12 @@ class NNAPIOpBuilder {
   // Finish emitting the op (of type `type`) into the NN API.
   TfLiteStatus FinalizeAddOperation(ANeuralNetworksOperationType type) {
     // Actually add a NN API operation
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context_,
-        ANeuralNetworksModel_addOperation(
-            nn_model_, type, static_cast<uint32_t>(augmented_inputs_.size()),
-            augmented_inputs_.data(),
-            static_cast<uint32_t>(augmented_outputs_.size()),
-            augmented_outputs_.data()));
+    CHECK_NN(context_, ANeuralNetworksModel_addOperation(
+                           nn_model_, type,
+                           static_cast<uint32_t>(augmented_inputs_.size()),
+                           augmented_inputs_.data(),
+                           static_cast<uint32_t>(augmented_outputs_.size()),
+                           augmented_outputs_.data()));
     augmented_inputs_.clear();
     augmented_outputs_.clear();
     return kTfLiteOk;
@@ -331,12 +330,11 @@ class NNAPIOpBuilder {
   template <typename T>
   TfLiteStatus AddScalarOperand(T value, int32_t nn_type) {
     ANeuralNetworksOperandType operand_type{.type = nn_type};
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context_, ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
+    CHECK_NN(context_,
+             ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
     int ann_operand = operand_mapping_->add_new_non_tensor_operand();
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context_, ANeuralNetworksModel_setOperandValue(nn_model_, ann_operand,
-                                                       &value, sizeof(T)));
+    CHECK_NN(context_, ANeuralNetworksModel_setOperandValue(
+                           nn_model_, ann_operand, &value, sizeof(T)));
     augmented_inputs_.push_back(ann_operand);
     return kTfLiteOk;
   }
@@ -346,12 +344,12 @@ class NNAPIOpBuilder {
                                 int32_t nn_type) {
     ANeuralNetworksOperandType operand_type{
         .type = nn_type, .dimensionCount = 1, .dimensions = &num_values};
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context_, ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
+    CHECK_NN(context_,
+             ANeuralNetworksModel_addOperand(nn_model_, &operand_type));
     int ann_operand = operand_mapping_->add_new_non_tensor_operand();
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context_, ANeuralNetworksModel_setOperandValue(
-                      nn_model_, ann_operand, values, sizeof(T) * num_values));
+    CHECK_NN(context_,
+             ANeuralNetworksModel_setOperandValue(
+                 nn_model_, ann_operand, values, sizeof(T) * num_values));
     augmented_inputs_.push_back(ann_operand);
     return kTfLiteOk;
   }
@@ -836,8 +834,7 @@ class NNAPIDelegateKernel {
 
     if (!nn_model_) {
       ANeuralNetworksModel* model;
-      RETURN_TFLITE_ERROR_IF_NN_ERROR(context,
-                                      ANeuralNetworksModel_create(&model));
+      CHECK_NN(context, ANeuralNetworksModel_create(&model));
       nn_model_.reset(model);
 
       TF_LITE_ENSURE_STATUS(
@@ -846,11 +843,9 @@ class NNAPIDelegateKernel {
 
     if (!nn_compilation_) {
       ANeuralNetworksCompilation* compilation;
-      RETURN_TFLITE_ERROR_IF_NN_ERROR(
-          context,
-          ANeuralNetworksCompilation_create(nn_model_.get(), &compilation));
-      RETURN_TFLITE_ERROR_IF_NN_ERROR(
-          context, ANeuralNetworksCompilation_finish(compilation));
+      CHECK_NN(context, ANeuralNetworksCompilation_create(nn_model_.get(),
+                                                          &compilation));
+      CHECK_NN(context, ANeuralNetworksCompilation_finish(compilation));
       nn_compilation_.reset(compilation);
     }
     return kTfLiteOk;
@@ -858,9 +853,8 @@ class NNAPIDelegateKernel {
 
   TfLiteStatus Invoke(TfLiteContext* context, TfLiteNode* node) {
     ANeuralNetworksExecution* execution = nullptr;
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context,
-        ANeuralNetworksExecution_create(nn_compilation_.get(), &execution));
+    CHECK_NN(context, ANeuralNetworksExecution_create(nn_compilation_.get(),
+                                                      &execution));
 
     // Set the input tensor buffers. Note: we access tflite tensors using
     // absolute indices but NN api indices inputs by relative indices.
@@ -878,11 +872,10 @@ class NNAPIDelegateKernel {
         // copy data to pre-allocated shared memory.
         memcpy(nn_input_memory_->get_data_ptr() + input_offset,
                tensor->data.raw, tensor->bytes);
-        RETURN_TFLITE_ERROR_IF_NN_ERROR(
-            context,
-            ANeuralNetworksExecution_setInputFromMemory(
-                execution, relative_input_index, nullptr,
-                nn_input_memory_->get_handle(), input_offset, tensor->bytes));
+        CHECK_NN(context, ANeuralNetworksExecution_setInputFromMemory(
+                              execution, relative_input_index, nullptr,
+                              nn_input_memory_->get_handle(), input_offset,
+                              tensor->bytes));
         input_offset += tensor->bytes;
         relative_input_index++;
       }
@@ -893,11 +886,10 @@ class NNAPIDelegateKernel {
     size_t output_offset = 0;
     for (auto output_index : TfLiteIntArrayView(node->outputs)) {
       TfLiteTensor* tensor = &context->tensors[output_index];
-      RETURN_TFLITE_ERROR_IF_NN_ERROR(
-          context,
-          ANeuralNetworksExecution_setOutputFromMemory(
-              execution, relative_output_index, nullptr,
-              nn_output_memory_->get_handle(), output_offset, tensor->bytes));
+      CHECK_NN(context, ANeuralNetworksExecution_setOutputFromMemory(
+                            execution, relative_output_index, nullptr,
+                            nn_output_memory_->get_handle(), output_offset,
+                            tensor->bytes));
       output_offset += tensor->bytes;
       relative_output_index++;
     }
@@ -910,17 +902,15 @@ class NNAPIDelegateKernel {
       // Here we are using a deep copy for state_in tensors so that we are not
       // reading and writing into the same buffer during a invocation.
       // TODO(110369471): using double shared buffer to minimize the copies.
-      RETURN_TFLITE_ERROR_IF_NN_ERROR(
-          context, ANeuralNetworksExecution_setOutput(
-                       execution, relative_output_index, nullptr,
-                       tensor->data.raw, tensor->bytes));
+      CHECK_NN(context, ANeuralNetworksExecution_setOutput(
+                            execution, relative_output_index, nullptr,
+                            tensor->data.raw, tensor->bytes));
       relative_output_index++;
     }
     // Invoke ANN in blocking fashion.
     ANeuralNetworksEvent* event = nullptr;
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context, ANeuralNetworksExecution_startCompute(execution, &event));
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(context, ANeuralNetworksEvent_wait(event));
+    CHECK_NN(context, ANeuralNetworksExecution_startCompute(execution, &event));
+    CHECK_NN(context, ANeuralNetworksEvent_wait(event));
     ANeuralNetworksEvent_free(event);
     ANeuralNetworksExecution_free(execution);
 
@@ -1027,21 +1017,19 @@ class NNAPIDelegateKernel {
     }
 
     // Tell ANN to declare inputs/outputs
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context, ANeuralNetworksModel_identifyInputsAndOutputs(
-                     nn_model_.get(), inputs.size(), inputs.data(),
-                     outputs.size(), outputs.data()));
+    CHECK_NN(context, ANeuralNetworksModel_identifyInputsAndOutputs(
+                          nn_model_.get(), inputs.size(), inputs.data(),
+                          outputs.size(), outputs.data()));
 
     // Set relaxed computation mode for fp32 if possible.
     if (kAndroidSdkVersion >= kMinSdkVersionForNNAPI11) {
-      RETURN_TFLITE_ERROR_IF_NN_ERROR(
-          context, ANeuralNetworksModel_relaxComputationFloat32toFloat16(
-                       nn_model_.get(), context->allow_fp32_relax_to_fp16));
+      CHECK_NN(context,
+               ANeuralNetworksModel_relaxComputationFloat32toFloat16(
+                   nn_model_.get(), context->allow_fp32_relax_to_fp16));
     }
 
     // Finalize the model
-    RETURN_TFLITE_ERROR_IF_NN_ERROR(
-        context, ANeuralNetworksModel_finish(nn_model_.get()));
+    CHECK_NN(context, ANeuralNetworksModel_finish(nn_model_.get()));
 
     // Create shared memory pool for inputs and outputs.
     nn_input_memory_.reset(new NNMemory("input_pool", total_input_byte_size));
