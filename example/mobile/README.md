@@ -4,3 +4,10 @@ You need to install gomobile and build the binding like below in ```ios``` direc
 
 ```gomobile bind --target=ios github.com/jdeng/gotflite/recognizer```
 
+Only two files are of interests:
+```example/mobile/Recognizer/ios/Recognizer/RNRecognizer.m``` for the native module
+```https://github.com/jdeng/gotflite/blob/master/example/mobile/Recognizer/App.js``` for the react native app
+
+
+
+
