@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"github.com/jdeng/gotflite"
 	"image"
+	"io/ioutil"
 	"os"
+	"strings"
 )
 
 type Model struct {
@@ -60,4 +62,15 @@ func Run(reco *Model, data []byte, n int) (string, error) {
 
 	bs, err := json.Marshal(results)
 	return string(bs), nil
+}
+
+func RunFile(reco *Model, path string, n int) (string, error) {
+	if strings.HasPrefix(path, "file://") {
+		path = strings.TrimPrefix(path, "file://")
+	}
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return Run(reco, data, n)
 }
