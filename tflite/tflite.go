@@ -218,7 +218,7 @@ func (t *Tensor) ToFloats() ([]float32, error) {
 
 	n := t.NumElements()
 	p := (*[1 << 16]float32)(t.Data())[:n] //iOS asks for a smaller one
-        return p[:], nil
+	return p[:], nil
 }
 
 func (t *Tensor) CopyFloats(data []float32) error {
