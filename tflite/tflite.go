@@ -7,7 +7,8 @@ import (
 
 //#cgo darwin CXXFLAGS: -stdlib=libc++ 
 //#cgo CXXFLAGS: -std=c++11 -I./tensorflow -I ./tensorflow/tensorflow/lite/tools/make/downloads/flatbuffers/include -I ./tensorflow/tensorflow/lite/kernels -I./tensorflow/tensorflow/lite/tools/make/downloads/eigen/ -I./tensorflow/tensorflow/lite/tools/make/downloads/gemmlowp/ -I./tensorflow/tensorflow/lite/tools/make/downloads/fft2d -I./tensorflow/tensorflow/lite/tools/make/downloads/neon_2_sse -I ./tensorflow/tensorflow/lite/tools/make/downloads/farmhash/src
-//#cgo LDFLAGS: -stdlib=libc++
+//#cgo darwin LDFLAGS: -stdlib=libc++
+//#cgo linux LDFLAGS: -ldl
 //#cgo CFLAGS: -I.
 // #include <stdio.h>
 // #include <stdlib.h>
